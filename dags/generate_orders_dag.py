@@ -1,8 +1,12 @@
+"""
+DAG для генерации данных по заказам
+"""
 import random
 from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists, create_database
@@ -12,15 +16,21 @@ from models import Base, Users, Products, Orders, OrderDetails, ProductCategorie
 
 
 def create_database_and_tables():
+    """
+    Функция для создания базы данных заказов и таблиц в ней
+    """
     engine = create_engine('postgresql+psycopg2://airflow:airflow@postgres/orders')
     if not database_exists(engine.url):
-        create_database(engine.url)  # Создаем бд orders, если её ещё нет
+        create_database(engine.url)  # Создаем БД orders, если её ещё нет
 
     Base.metadata.drop_all(engine)  # Удаляем существующие таблицы
     Base.metadata.create_all(engine)  # Создаем заново
 
 
 def populate_tables():
+    """
+    Функция генерации фейковых данных
+    """
     fake = Faker()
     engine = create_engine('postgresql+psycopg2://airflow:airflow@postgres/orders')
     session_builder = sessionmaker(bind=engine)
@@ -30,6 +40,7 @@ def populate_tables():
         users = []
         for _ in range(1500):
             user_email = fake.email()
+            # Нужны только уникальные email
             if user_email in emails:
                 continue
             emails.add(user_email)
@@ -46,7 +57,14 @@ def populate_tables():
         session.flush()
 
         # Заполнение категорий товаров
-        categories = [ProductCategories(name=fake.word()) for _ in range(50)]
+        product_categories = [
+            'Electronics', 'Furniture', 'Clothing', 'Sports', 'Toys', 'Books',
+            'Beauty', 'Automotive', 'Groceries', 'Jewelry', 'Home Appliances', 'Health',
+            'Pet Supplies', 'Gardening', 'Office Supplies', 'Food & Beverage', 'Music',
+            'Movies', 'Travel', 'Tools', 'Outdoor', 'Baby Products', 'Photography',
+            'Art', 'Crafts', 'Gaming', 'Technology', 'Furniture & Decor'
+        ]
+        categories = [ProductCategories(name=random.choice(product_categories)) for _ in range(50)]
         session.add_all(categories)
         session.flush()
 
@@ -89,7 +107,8 @@ def populate_tables():
 
 
 with DAG(
-    'create_orders_tables',
+    'create_orders_data',
+    description='Создание таблиц и генерация данных для заказов',
     schedule_interval='@once',
     start_date=datetime(2024, 1, 1),
     catchup=False
@@ -99,10 +118,14 @@ with DAG(
         task_id='create_tables',
         python_callable=create_database_and_tables
     )
-
     populate_tables_task = PythonOperator(
         task_id='populate_tables',
         python_callable=populate_tables
     )
-
-    create_tables_task >> populate_tables_task
+    trigger_replication = TriggerDagRunOperator(
+        task_id='trigger_replication',
+        trigger_dag_id='replicate_postgres_to_mysql',
+        wait_for_completion=True,
+        failed_states=["failed"]
+    )
+    create_tables_task >> populate_tables_task >> trigger_replication

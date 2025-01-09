@@ -1,3 +1,6 @@
+"""
+Модели таблиц
+"""
 from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
@@ -6,6 +9,9 @@ Base = declarative_base()
 
 
 class Users(Base):
+    """
+    Модель таблицы пользователей
+    """
     __tablename__ = 'users'
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     first_name = Column(String(50), nullable=False)
@@ -17,6 +23,9 @@ class Users(Base):
 
 
 class Products(Base):
+    """
+    Модель таблицы товаров
+    """
     __tablename__ = 'products'
     product_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
@@ -28,6 +37,9 @@ class Products(Base):
 
 
 class Orders(Base):
+    """
+    Модель таблицы товаров
+    """
     __tablename__ = 'orders'
     order_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.user_id'))
@@ -38,6 +50,9 @@ class Orders(Base):
 
 
 class OrderDetails(Base):
+    """
+    Модель таблицы деталей заказов
+    """
     __tablename__ = 'order_details'
     order_detail_id = Column(Integer, primary_key=True, autoincrement=True)
     order_id = Column(Integer, ForeignKey('orders.order_id'))
@@ -48,6 +63,9 @@ class OrderDetails(Base):
 
 
 class ProductCategories(Base):
+    """
+    Модель таблицы категорий товаров
+    """
     __tablename__ = 'product_categories'
     category_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
